@@ -4,7 +4,7 @@
  */
 if ( !class_exists( 'wp_player_plugin' ) ){
 
-    $WP_PLAYER_VERSION = '2.5.1';
+    $WP_PLAYER_VERSION = '2.5.2';
 
     class wp_player_plugin {
 
@@ -140,25 +140,37 @@ if ( !class_exists( 'wp_player_plugin' ) ){
             $id = intval($_GET['id']);
             $nonce = $_SERVER['HTTP_NONCE'];
             
+            
             if ( !wp_verify_nonce($nonce, "wp-player") || !function_exists('curl_init') ) {
                 $JSON = array('status' =>  false, 'message' => '非法请求');
             } else {
                 switch ( $type ) {
-                    case 'song': $url = "http://music.163.com/api/song/detail/?ids=[$id]"; $key = 'songs'; break;
-                    case 'album': $url = "http://music.163.com/api/album/$id?id=$id"; $key = 'album'; break;
-                    case 'artist': $url = "http://music.163.com/api/artist/$id?id=$id"; $key = 'artist'; break;
-                    case 'collect': $url = "http://music.163.com/api/playlist/detail?id=$id"; $key = 'result'; break;
-                    default: $url = "http://music.163.com/api/song/detail/?ids=[$id]"; $key = 'songs';
+                    case 'song': $url = "http://music.163.com/api/song/detail/?ids=[$id]"; $key = 'songs'; $typeid = 2; break;
+                    case 'album': $url = "http://music.163.com/api/album/$id?id=$id"; $key = 'album'; $typeid = 1; break;
+                    case 'artist': $url = "http://music.163.com/api/artist/$id?id=$id"; $key = 'artist'; $typeid = 3; break;
+                    case 'collect': $url = "http://music.163.com/api/playlist/detail?id=$id"; $key = 'result'; $typeid = 0; break;
+                    default: $url = "http://music.163.com/api/song/detail/?ids=[$id]"; $key = 'songs'; $typeid = 2; 
                 }
 
-                $ch = curl_init();
-                curl_setopt($ch, CURLOPT_URL, $url);
-                curl_setopt($ch, CURLOPT_HTTPHEADER, array( 'Cookie: appver=2.0.2' ));
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
-                curl_setopt($ch, CURLOPT_REFERER, 'http://music.163.com/;');
+                $header = array(
+                    "Accept:*/*",
+                    "Accept-Language:zh-CN,zh;q=0.8",
+                    "Cache-Control:no-cache",
+                    "Connection:keep-alive",
+                    "Content-Type:application/x-www-form-urlencoded;charset=UTF-8",
+                    "Cookie:visited=true;",
+                    "DNT:1",
+                    "Host:music.163.com",
+                    "Pragma:no-cache",
+                    "Referer:http://music.163.com/outchain/player?type={$typeid}&id={$id}&auto=1&height=430&bg=e8e8e8",
+                    "User-Agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.155 Safari/537.36"
+                );
+
+                $ch = curl_init($url);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
                 $cexecute = curl_exec($ch);
-                curl_close($ch);
+                @curl_close($ch);
                 
                 if ( $cexecute ) {
                     $result = json_decode($cexecute, true);
@@ -175,12 +187,13 @@ if ( !class_exists( 'wp_player_plugin' ) ){
                         }
                         
                         foreach ( $data as $keys => $data ){
+                            $mp3_url = str_replace("http://m", "http://p", $data['mp3Url']);
                             $JSON['data']['trackList'][] = array(
                                 'song_id' => $data['id'],
                                 'title' => $data['name'],
                                 'album_name' => $data['album']['name'],
                                 'artist' => $data['artists'][0]['name'],
-                                'location' => $data['mp3Url'],
+                                'location' => $mp3_url,
                                 'pic' => $data['album']['blurPicUrl'].'?param=90x90'
                             );
                         }
@@ -245,12 +258,12 @@ if ( !class_exists( 'wp_player_plugin' ) ){
         function wp_player_shortcode( $atts ){
             global $post;
 
-            extract( shortcode_atts( array( 'autoplay' => 0 ), $atts ) );
+            extract( shortcode_atts( array( 'autoplay' => 0 , 'randplay' => 0), $atts ) );
             
             $data = $this->get_source();
             $img = $this->base_dir.'images/default.png';
 
-            return '<!--wp-player start--><div class="wp-player" data-wp-player="wp-player" data-source="'.$data['source'].'" data-autoplay="'.$autoplay.'" data-type="'.$data['type'].'" data-xiami="'.$data['xiami'].'" data-title="'.$data['title'].'" data-author="'.$data['author'].'" data-address="'.$data['file'].'" data-thumb="'.$data['thumb'].'" data-lyric="'.$data['open'].'"><div class="wp-player-box"><div class="wp-player-thumb"><img src="'.$img.'" width="90" height="90" alt="" /><div class="wp-player-playing"><span></span></div></div><div class="wp-player-panel"><div class="wp-player-title"></div><div class="wp-player-author"></div><div class="wp-player-progress"><div class="wp-player-seek-bar"><div class="wp-player-play-bar"><span class="wp-player-play-current"></span></div></div></div><div class="wp-player-controls-holder"><div class="wp-player-time"></div><div class="wp-player-controls"><a href="javascript:;" class="wp-player-previous" title="上一首"></a><a href="javascript:;" class="wp-player-play" title="播放"></a><a href="javascript:;" class="wp-player-stop" title="暂停"></a><a href="javascript:;" class="wp-player-next" title="下一首"></a></div>'.$data['output'].'<div class="wp-player-list-btn" title="歌单"></div></div></div></div><div class="wp-player-main"><div class="wp-player-list"><ul></ul></div><div class="wp-player-lyrics"><ul></ul></div></div></div><!--wp-player end-->';
+            return '<!--wp-player start--><div class="wp-player" data-wp-player="wp-player" data-source="'.$data['source'].'" data-autoplay="'.$autoplay.'" data-randplay="'.$randplay.'" data-type="'.$data['type'].'" data-xiami="'.$data['xiami'].'" data-title="'.$data['title'].'" data-author="'.$data['author'].'" data-address="'.$data['file'].'" data-thumb="'.$data['thumb'].'" data-lyric="'.$data['open'].'"><div class="wp-player-box"><div class="wp-player-thumb"><img src="'.$img.'" width="90" height="90" alt="" /><div class="wp-player-playing"><span></span></div></div><div class="wp-player-panel"><div class="wp-player-title"></div><div class="wp-player-author"></div><div class="wp-player-progress"><div class="wp-player-seek-bar"><div class="wp-player-play-bar"><span class="wp-player-play-current"></span></div></div></div><div class="wp-player-controls-holder"><div class="wp-player-time"></div><div class="wp-player-controls"><a href="javascript:;" class="wp-player-previous" title="上一首"></a><a href="javascript:;" class="wp-player-play" title="播放"></a><a href="javascript:;" class="wp-player-stop" title="暂停"></a><a href="javascript:;" class="wp-player-next" title="下一首"></a></div>'.$data['output'].'<div class="wp-player-list-btn" title="歌单"></div></div></div></div><div class="wp-player-main"><div class="wp-player-list"><ul></ul></div><div class="wp-player-lyrics"><ul></ul></div></div></div><!--wp-player end-->';
         }
 
         //WP-Player Admin Option Page
@@ -270,6 +283,7 @@ if ( !class_exists( 'wp_player_plugin' ) ){
                                     <ol>
                                         <li><code>[player]</code></li>
                                         <li><code>[player autoplay="0"]</code></li>
+                                        <li><code>[player autoplay="0" randplay="0"]</code></li>
                                     </ol>
                                 </td>
                             </tr>
@@ -281,8 +295,9 @@ if ( !class_exists( 'wp_player_plugin' ) ){
                                         <li>在虾米网或网易云音乐打开喜欢的歌曲页面，复制歌曲页面的网址如：<code>http://www.xiami.com/song/2078022......</code></li>
                                         <li>并将复制的网址填写到后面的表单内。音乐类型将根据网址自动做出选择。</li>
                                         <li>点击<code>获取音乐ID</code>按钮，此时音乐ID出现在表单中。</li>
-                                        <li>将短代码 <code>[player autoplay="1"]</code> 填入您的文章内容中。</li>
+                                        <li>将短代码 <code>[player autoplay="1" randplay="0"]</code> 填入您的文章内容中。</li>
                                         <li>短代码中 <code>autoplay</code> 表示是否自动播放；参数<code>"0"</code>表示否；<code>"1"</code>表示是；</li>
+                                        <li>短代码中 <code>randplay</code> 表示是否随机播放；参数<code>"0"</code>表示否；<code>"1"</code>表示是；</li>
                                         <li>支持播放歌单：单音乐页面、专辑页面、艺人页面、精选集页面。</li>
                                         <li><code>PS：</code>建议使用网址来获取音乐ID。</li>
                                     </ol>
