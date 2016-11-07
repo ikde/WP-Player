@@ -148,7 +148,7 @@
                         .replace('{title}', data[i].title);
             }
 
-            $(tpl).appendTo(DOM.list.children('ul')).first().addClass('current');
+            $(tpl).appendTo(DOM.list.children('ul')).eq(this.index).addClass('current');
 
             return this;
         },
@@ -156,11 +156,24 @@
         // 创建声音
         createSound: function(val) {
             var _this = this,
-                index = (typeof val === 'undefined') ? 0 : val,
-                data = this.data[index],
-                DOM = this.DOM,
                 autoplay = (this.single == 'true' && this.attr.autoplay == "1" && !this.isMobile ) ? true : false,
                 randplay = (this.single == 'true' && this.attr.randplay == "1" ) ? true : false;
+                if(randplay){
+                    var maxIndex = this.data.length-1;
+                    var randIndex = Math.floor(Math.random()*(maxIndex+1));
+                    //开始播放为随机
+                    this.index = (typeof val === 'undefined') ? randIndex : val;
+                }else{
+                    this.index = (typeof val === 'undefined') ? 0 : val;
+                }
+            var data = this.data[this.index],
+                DOM = this.DOM;
+
+            // 设置列表选中
+            this.setList();
+
+            // 设置初始位置
+            if (typeof val === 'undefined') this.setScrollTop();
 
             //setting DOM
             DOM.title.text(data.title);
@@ -473,21 +486,21 @@
         prevSound: function() {
             var minIndex = 0;
             if (--this.index < minIndex) this.index = this.data.length-1;
-            this.reset().setList().createSound(this.index);
+            this.reset().setList().setScrollTop().createSound(this.index);
         },
 
         // 下一首 Event
         nextSound: function() {
             var maxIndex = this.data.length-1;
             if (++this.index > maxIndex) this.index = 0;
-            this.reset().setList().createSound(this.index);
+            this.reset().setList().setScrollTop().createSound(this.index);
         },
         
         // 随机下一首 Event
         randSound: function() {
             var maxIndex = this.data.length-1;
             this.index = Math.floor(Math.random()*(maxIndex+1));
-            this.reset().setList().createSound(this.index);
+            this.reset().setList().setScrollTop().createSound(this.index);
         },
 
         // 设置当前播放状态
@@ -521,7 +534,23 @@
         setList: function() {
             var DOM = this.DOM;
             DOM.list.find('li').removeClass('current').eq(this.index).addClass('current');
+
             return this;
+        },
+
+        //设置当前播放的滚动条位置
+        setScrollTop: function() {        	
+        	var listNodeHeight = $('.wp-player-list ul li')[0].clientHeight;
+        	var listHeight = $('.wp-player-list')[0].clientHeight;
+        	var listNodeCount = parseInt(listHeight / listNodeHeight);
+        	//设置为居中
+        	var pos = parseInt(listNodeCount / 2);
+        	//计算坐标
+        	var selectTop = $('.current').offset().top - $('.wp-player-list').offset().top + $('.wp-player-list').scrollTop() - (pos - 1) * listNodeHeight;
+            
+            $('.wp-player-list').stop().animate({
+                scrollTop:selectTop
+            },500);
         },
 
         // 获取播放器DOM
