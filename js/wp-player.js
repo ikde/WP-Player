@@ -8,7 +8,7 @@
  * @URL      http://webjyh.com
  * @Github   https://github.com/webjyh/WP-Player
  * @reutn    {jQuery}
- * @version  2.5.2
+ * @version  2.5.3
  * 
  */
 ~function($, soundManager) {

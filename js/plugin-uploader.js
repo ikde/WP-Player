@@ -6,7 +6,7 @@
 * @date     2014-12-19
 * @update   2015-02-06
 * @URL      http://webjyh.com
-* @version  2.5.1
+* @version  2.5.3
 * 
 */
 jQuery(document).ready(function() {
